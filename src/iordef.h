@@ -23,7 +23,8 @@ typedef enum {
   DATA_TIMESTAMP, /* Will not include any offset, hence each buffer will be the same */
   DATA_OFFSET,
   DATA_INCOMPRESSIBLE,  /* Will include the offset as well */
-  DATA_RANDOM           /* fully scrambled blocks */
+  DATA_RANDOM,          /* fully scrambled blocks */
+  DATA_FROMFILE         /* reads the memory pattern from a file */
 } ior_dataPacketType_e;
 
 typedef enum{

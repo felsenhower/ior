@@ -132,6 +132,20 @@ void DecodeDirective(char *line, IOR_param_t *params, options_all_t * module_opt
                 }else{
                   FAIL("Unknown summaryFormat");
                 }
+        } else if (strcasecmp(option, "dataInputFile") == 0) {
+          if (rank == 0){
+            FILE* fd = fopen(value, "rb");
+            if (fd == NULL){
+              FAIL("Cannot open dataInputFile file \"%s\"!", value);
+            }
+            fseek(fd, 0, SEEK_END);
+            if(ftell(fd) == 0) {
+              fclose(fd);
+              FAIL("dataInputFile file \"%s\" is empty!", value);
+            }
+            fclose(fd);
+          }
+          params->dataInputFile = strdup(value);
         } else if (strcasecmp(option, "refnum") == 0) {
                 params->referenceNumber = atoi(value);
         } else if (strcasecmp(option, "debug") == 0) {
@@ -449,7 +463,7 @@ option_help * createGlobalOptions(IOR_param_t * params){
     {'j', NULL,        "outlierThreshold -- warn on outlier N seconds from mean", OPTION_OPTIONAL_ARGUMENT, 'd', & params->outlierThreshold},
     {'k', NULL,        "keepFile -- don't remove the test file(s) on program exit", OPTION_FLAG, 'd', & params->keepFile},
     {'K', NULL,        "keepFileWithError  -- keep error-filled file(s) after data-checking", OPTION_FLAG, 'd', & params->keepFileWithError},
-    {'l', "dataPacketType",        "datapacket type-- type of packet that will be created [offset|incompressible|timestamp|random|o|i|t|r]", OPTION_OPTIONAL_ARGUMENT, 's', &  params->buffer_type},
+    {'l', "dataPacketType",        "datapacket type-- type of packet that will be created [offset|incompressible|timestamp|random|fromfile|o|i|t|r|f]", OPTION_OPTIONAL_ARGUMENT, 's', &  params->buffer_type},
     {'m', NULL,        "multiFile -- use number of reps (-i) for multiple file count", OPTION_FLAG, 'd', & params->multiFile},
     {'M', NULL,        "memoryPerNode -- hog memory on the node  (e.g.: 2g, 75%)", OPTION_OPTIONAL_ARGUMENT, 's', & params->memoryPerNodeStr},
     {'N', NULL,        "numTasks -- number of tasks that are participating in the test (overrides MPI)", OPTION_OPTIONAL_ARGUMENT, 'd', & params->numTasks},
@@ -477,6 +491,7 @@ option_help * createGlobalOptions(IOR_param_t * params){
     {.help="  -O summaryFile=FILE                 -- store result data into this file", .arg = OPTION_OPTIONAL_ARGUMENT},
     {.help="  -O summaryFormat=[default,JSON,CSV] -- use the format for outputting the summary", .arg = OPTION_OPTIONAL_ARGUMENT},
     {.help="  -O saveRankPerformanceDetailsCSV=<FILE> -- store the performance of each rank into the named CSV file.", .arg = OPTION_OPTIONAL_ARGUMENT},
+    {.help="  -O dataInputFile=<FILE> -- specify the input file to fill the buffer with (used with --dataPacketType=fromfile)", .arg = OPTION_OPTIONAL_ARGUMENT},
     {0, "dryRun",      "do not perform any I/Os just run evtl. inputs print dummy output", OPTION_FLAG, 'd', & params->dryRun},
     LAST_OPTION,
   };

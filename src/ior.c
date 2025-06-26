@@ -419,7 +419,7 @@ static size_t
 CompareData(void *expectedBuffer, size_t size, IOR_param_t *test, IOR_offset_t offset, int fillrank, int access)
 {
         assert(access == WRITECHECK || access == READCHECK);
-        return verify_memory_pattern(offset, expectedBuffer, size, test->timeStampSignatureValue, fillrank, test->dataPacketType, test->gpuMemoryFlags);
+        return verify_memory_pattern(offset, expectedBuffer, size, test->timeStampSignatureValue, fillrank, test->dataPacketType, test->gpuMemoryFlags, test->dataInputFile);
 }
 
 /*
@@ -1229,7 +1229,7 @@ static void TestIoSys(IOR_test_t *test)
                           (&params->timeStampSignatureValue, 1, MPI_UNSIGNED, 0,
                            testComm), "cannot broadcast start time value");
 
-                generate_memory_pattern((char*) ioBuffers.buffer, params->transferSize, params->timeStampSignatureValue, pretendRank, params->dataPacketType, params->gpuMemoryFlags);
+                generate_memory_pattern((char*) ioBuffers.buffer, params->transferSize, params->timeStampSignatureValue, pretendRank, params->dataPacketType, params->gpuMemoryFlags, params->dataInputFile);
 
                 /* use repetition count for number of multiple files */
                 if (params->multiFile)

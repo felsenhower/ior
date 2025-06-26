@@ -557,7 +557,7 @@ void run_precreate(phase_stat_t * s, int current_index){
   }
 
   char * buf = aligned_buffer_alloc(o.file_size, o.gpu_memory_flags);
-  generate_memory_pattern(buf, o.file_size, o.random_seed, o.rank, o.dataPacketType, o.gpu_memory_flags);
+  generate_memory_pattern(buf, o.file_size, o.random_seed, o.rank, o.dataPacketType, o.gpu_memory_flags, NULL);
   double op_timer; // timer for individual operations
   size_t pos = -1; // position inside the individual measurement array
   double op_time;
@@ -654,7 +654,7 @@ void run_benchmark(phase_stat_t * s, int * current_index_p){
       }
       if ( o.file_size == (int) o.backend->xfer(READ, aiori_fh, (IOR_size_t *) buf, o.file_size, 0, o.backend_options) ) {
         if(o.verify_read){
-            if(verify_memory_pattern(prevFile * o.dset_count + d, buf, o.file_size, o.random_seed, readRank, o.dataPacketType, o.gpu_memory_flags) == 0){
+            if(verify_memory_pattern(prevFile * o.dset_count + d, buf, o.file_size, o.random_seed, readRank, o.dataPacketType, o.gpu_memory_flags, NULL) == 0){
               s->obj_read.suc++;
             }else{
               s->obj_read.err++;
@@ -695,7 +695,7 @@ void run_benchmark(phase_stat_t * s, int * current_index_p){
       op_timer = GetTimeStamp();
       aiori_fh = o.backend->create(obj_name, IOR_WRONLY | IOR_CREAT, o.backend_options);
       if (NULL != aiori_fh){
-        generate_memory_pattern(buf, o.file_size, o.random_seed, writeRank, o.dataPacketType, o.gpu_memory_flags);
+        generate_memory_pattern(buf, o.file_size, o.random_seed, writeRank, o.dataPacketType, o.gpu_memory_flags, NULL);
         update_write_memory_pattern(newFileIndex * o.dset_count + d, buf, o.file_size, o.random_seed, writeRank, o.dataPacketType, o.gpu_memory_flags);
         
         if ( o.file_size == (int) o.backend->xfer(WRITE, aiori_fh, (IOR_size_t *) buf, o.file_size, 0, o.backend_options)) {

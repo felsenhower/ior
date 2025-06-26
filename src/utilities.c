@@ -92,7 +92,7 @@ enum OutputFormat_t outputFormat;
  * @param dataPacketType identifier to designate pattern to fill buffer
  */
 void update_write_memory_pattern(uint64_t item, char * buf, size_t bytes, int rand_seed, int pretendRank, ior_dataPacketType_e dataPacketType, ior_memory_flags type){
-  if (dataPacketType == DATA_TIMESTAMP || bytes < 8)
+  if (dataPacketType == DATA_TIMESTAMP || dataPacketType == DATA_FROMFILE || bytes < 8)
     return;
 
 #ifdef HAVE_GPU_DIRECT
@@ -124,6 +124,48 @@ void update_write_memory_pattern(uint64_t item, char * buf, size_t bytes, int ra
   }
 }
 
+static FILE * open_input_file(char *dataInputFilename) {
+  if (dataInputFilename == NULL) {
+    FAIL("Unable to open input file to generate memory pattern. dataInputFile option was not passed!");
+  }
+  FILE * fd = NULL;
+  fd = fopen(dataInputFilename, "rb");
+  if(!fd) {
+    FAIL("Unable to read from input file \"%s\"", dataInputFilename);
+    return NULL;
+  }
+  fseek(fd, 0, SEEK_END);
+  if(ftell(fd) == 0) {
+    fclose(fd);
+    FAIL("Can not read from empty input file \"%s\"", dataInputFilename);
+    return NULL;
+  }
+  rewind(fd);
+  return fd;
+}
+
+static uint64_t read_from_input_file(FILE *fd) {
+  uint64_t result = 0;
+  const size_t bytes_to_read = sizeof(result);
+  char file_read_buf[bytes_to_read];
+  size_t read_pos = 0;
+  while(read_pos < bytes_to_read) {
+    int c = fgetc(fd);
+    if(c == EOF) {
+      if(ferror(fd)) {
+        FAIL("Error during read of input file");
+        return 0;
+      }
+      rewind(fd);
+      continue;
+    }
+    file_read_buf[read_pos] = (char) c;
+    read_pos++;
+  }
+  memcpy(&result, file_read_buf, bytes_to_read);
+  return result;
+}
+
 /**
  * Fills a buffer with bytes of a given pattern.  Not performance-sensitive
  * because it is called once per test.
@@ -133,14 +175,20 @@ void update_write_memory_pattern(uint64_t item, char * buf, size_t bytes, int ra
  * @param rand_seed seed to use for PRNG
  * @param pretendRank unique identifier for this process
  * @param dataPacketType identifier to designate pattern to fill buffer
+ * @param dataInputFilename Filename to read from when dataPacketType == DATA_FROMFILE
  */
-void generate_memory_pattern(char * buf, size_t bytes, int rand_seed, int pretendRank, ior_dataPacketType_e dataPacketType, ior_memory_flags type){
+void generate_memory_pattern(char * buf, size_t bytes, int rand_seed, int pretendRank, ior_dataPacketType_e dataPacketType, ior_memory_flags type, char * dataInputFilename){
 #ifdef HAVE_GPU_DIRECT
   if(type == IOR_MEMORY_TYPE_GPU_DEVICE_ONLY){
     generate_memory_pattern_gpu(buf, bytes, rand_seed,  pretendRank, dataPacketType);
     return;
   }
 #endif
+  FILE * input_fd = NULL;
+  if(dataPacketType == DATA_FROMFILE) {
+    input_fd = open_input_file(dataInputFilename);
+  }
+  
   uint64_t * buffi = (uint64_t*) buf;
   // first half of 64 bits use the rank
   const size_t size = bytes / 8;
@@ -160,6 +208,9 @@ void generate_memory_pattern(char * buf, size_t bytes, int rand_seed, int preten
       }case(DATA_TIMESTAMP):{
         buffi[i] = ((uint64_t) pretendRank) << 32 | rand_seed + i;
         break;
+      }case(DATA_FROMFILE):{
+        buffi[i] = read_from_input_file(input_fd);
+        break;
       }
     }
   }
@@ -167,6 +218,11 @@ void generate_memory_pattern(char * buf, size_t bytes, int rand_seed, int preten
   for(size_t i=size*8; i < bytes; i++){
     buf[i] = (char) i;
   }
+  
+  if(dataPacketType == DATA_FROMFILE) {
+    fclose(input_fd);
+  }
+  
 }
 
 void invalidate_buffer_pattern(char * buffer, size_t bytes, ior_memory_flags type){
@@ -179,7 +235,7 @@ void invalidate_buffer_pattern(char * buffer, size_t bytes, ior_memory_flags typ
   }
 }
 
-int verify_memory_pattern(uint64_t item, char * buffer, size_t bytes, int rand_seed, int pretendRank, ior_dataPacketType_e dataPacketType, ior_memory_flags type){  
+int verify_memory_pattern(uint64_t item, char * buffer, size_t bytes, int rand_seed, int pretendRank, ior_dataPacketType_e dataPacketType, ior_memory_flags type, char * dataInputFilename){  
   int error = 0;
 #ifdef HAVE_GPU_DIRECT
   if(type == IOR_MEMORY_TYPE_GPU_DEVICE_ONLY){
@@ -187,6 +243,12 @@ int verify_memory_pattern(uint64_t item, char * buffer, size_t bytes, int rand_s
     return error;
   }
 #endif
+
+  FILE * input_fd = NULL;
+  if(dataPacketType == DATA_FROMFILE) {
+    input_fd = open_input_file(dataInputFilename);
+  }
+
   // always read all data to ensure that performance numbers stay the same
   uint64_t * buffi = (uint64_t*) buffer;
     
@@ -216,9 +278,12 @@ int verify_memory_pattern(uint64_t item, char * buffer, size_t bytes, int rand_s
       }case(DATA_TIMESTAMP):{
         exp = ((uint64_t) pretendRank) << 32 | rand_seed + i;
         break;
+      }case(DATA_FROMFILE):{
+        exp = read_from_input_file(input_fd);
+        break;
       }
     }
-    if(i % 512 == 0 && (dataPacketType != DATA_TIMESTAMP) && dataPacketType != DATA_RANDOM){
+    if(i % 512 == 0 && (dataPacketType != DATA_TIMESTAMP) && (dataPacketType != DATA_RANDOM) && (dataPacketType != DATA_FROMFILE)){
       exp = ((uint32_t) item * k) | ((uint64_t) pretendRank) << 32;
       k++;
     }
@@ -230,6 +295,10 @@ int verify_memory_pattern(uint64_t item, char * buffer, size_t bytes, int rand_s
     if(buffer[i] != (char) i){
       error = 1;
     }
+  }
+  
+  if(dataPacketType == DATA_FROMFILE) {
+    fclose(input_fd);
   }
   
   return error;
@@ -299,6 +368,8 @@ ior_dataPacketType_e parsePacketType(char t){
             return DATA_OFFSET;
     case 'r': /* randomized blocks */
             return DATA_RANDOM;
+    case 'f': /* from file */
+            return DATA_FROMFILE;
     default:
       ERRF("Unknown packet type \"%c\"; generic assumed\n", t);
       return DATA_OFFSET;
