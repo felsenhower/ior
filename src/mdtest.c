@@ -409,7 +409,7 @@ static void create_file (const char *path, uint64_t itemNum) {
         VERBOSE(3,5,"create_remove_items_helper: write..." );
 
         o.hints.fsyncPerWrite = o.sync_file;
-        update_write_memory_pattern(itemNum, o.write_buffer, o.write_bytes, o.random_buffer_offset, rank, o.dataPacketType, o.gpu_memory_flags);
+        update_write_memory_pattern(itemNum, o.write_buffer, o.write_bytes, o.random_buffer_offset, rank, o.dataPacketType, o.gpu_memory_flags, NULL);
 
         if ( o.write_bytes != (size_t) o.backend->xfer(WRITE, aiori_fh, (IOR_size_t *) o.write_buffer, o.write_bytes, 0, o.backend_options)) {
             WARNF("unable to write file %s", curr_item);

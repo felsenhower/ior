@@ -36,7 +36,7 @@ void* safeMalloc(uint64_t size);
 void set_o_direct_flag(int *fd);
 
 ior_dataPacketType_e parsePacketType(char t);
-void update_write_memory_pattern(uint64_t item, char * buf, size_t bytes, int rand_seed, int rank, ior_dataPacketType_e dataPacketType, ior_memory_flags type);
+void update_write_memory_pattern(uint64_t item, char * buf, size_t bytes, int rand_seed, int rank, ior_dataPacketType_e dataPacketType, ior_memory_flags type, IOR_data_input_t *dataInput);
 void update_write_memory_pattern_gpu(uint64_t item, char * buf, size_t bytes, int rand_seed, int rank, ior_dataPacketType_e dataPacketType);
 void generate_memory_pattern(char * buf, size_t bytes, int rand_seed, int rank, ior_dataPacketType_e dataPacketType, ior_memory_flags type, IOR_data_input_t *dataInput);
 void generate_memory_pattern_gpu(char * buf, size_t bytes, int rand_seed, int rank, ior_dataPacketType_e dataPacketType);

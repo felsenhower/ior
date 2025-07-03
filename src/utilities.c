@@ -83,48 +83,7 @@ enum OutputFormat_t outputFormat;
 
 /***************************** F U N C T I O N S ******************************/
 
-/**
- * Modifies a buffer for a write.  Performance sensitive because it is called
- * before each write.
- *
- * @param buf pointer to byte buffer to fill
- * @param bytes number of bytes to produce to fill buffer
- * @param rand_seed seed to use for PRNG
- * @param pretendRank unique identifier for this process
- * @param dataPacketType identifier to designate pattern to fill buffer
- */
-void update_write_memory_pattern(uint64_t item, char * buf, size_t bytes, int rand_seed, int pretendRank, ior_dataPacketType_e dataPacketType, ior_memory_flags type){
-  if (dataPacketType == DATA_TIMESTAMP || dataPacketType == DATA_FROMFILE || bytes < 8)
-    return;
 
-#ifdef HAVE_GPU_DIRECT
-  if(type == IOR_MEMORY_TYPE_GPU_DEVICE_ONLY){
-    update_write_memory_pattern_gpu(item, buf, bytes, rand_seed,  pretendRank, dataPacketType);
-    return;
-  }
-#endif
-
-  size_t size = bytes / sizeof(uint64_t);
-  uint64_t * buffi = (uint64_t*) buf;
-
-  if (dataPacketType == DATA_RANDOM) {
-      uint64_t rand_state_local;
-      unsigned seed = rand_seed + pretendRank + item;
-      rand_state_local = rand_r(&seed);
-      for (size_t i = 0; i < size; i++) {
-          rand_state_local *= RANDALGO_GOLDEN_RATIO_PRIME;
-          rand_state_local >>= 3;
-          buffi[i] = rand_state_local;
-      }
-      return;
-  }
-
-  /* DATA_INCOMPRESSIBLE and DATA_OFFSET */
-  int k = 1;
-  for(size_t i=0; i < size; i+=512, k++){
-    buffi[i] = ((uint32_t) item * k) | ((uint64_t) pretendRank) << 32;
-  }
-}
 
 void loadDataInputFile(const char *dataInputFilename, IOR_data_input_t *dataInput) {
         if (dataInputFilename == NULL) {
@@ -186,6 +145,58 @@ void deallocateDataInput(IOR_data_input_t *dataInput) {
     free(dataInput->buffer);
 }
 
+
+
+/**
+ * Modifies a buffer for a write.  Performance sensitive because it is called
+ * before each write.
+ *
+ * @param buf pointer to byte buffer to fill
+ * @param bytes number of bytes to produce to fill buffer
+ * @param rand_seed seed to use for PRNG
+ * @param pretendRank unique identifier for this process
+ * @param dataPacketType identifier to designate pattern to fill buffer
+ */
+void update_write_memory_pattern(uint64_t item, char * buf, size_t bytes, int rand_seed, int pretendRank, ior_dataPacketType_e dataPacketType, ior_memory_flags type, IOR_data_input_t *dataInput){
+  if (dataPacketType == DATA_TIMESTAMP /* || dataPacketType == DATA_FROMFILE */ || bytes < 8)
+    return;
+
+#ifdef HAVE_GPU_DIRECT
+  if(type == IOR_MEMORY_TYPE_GPU_DEVICE_ONLY){
+    update_write_memory_pattern_gpu(item, buf, bytes, rand_seed,  pretendRank, dataPacketType);
+    return;
+  }
+#endif
+
+  size_t size = bytes / sizeof(uint64_t);
+  uint64_t * buffi = (uint64_t*) buf;
+
+  if (dataPacketType == DATA_RANDOM) {
+      uint64_t rand_state_local;
+      unsigned seed = rand_seed + pretendRank + item;
+      rand_state_local = rand_r(&seed);
+      for (size_t i = 0; i < size; i++) {
+          rand_state_local *= RANDALGO_GOLDEN_RATIO_PRIME;
+          rand_state_local >>= 3;
+          buffi[i] = rand_state_local;
+      }
+      return;
+  } else if (dataPacketType == DATA_FROMFILE) {
+      for (size_t i = 0; i < size; i++) {
+          buffi[i] = readFromDataInput(dataInput, GENERATE);
+      }
+      return;
+  }
+
+  /* DATA_INCOMPRESSIBLE and DATA_OFFSET */
+  int k = 1;
+  for(size_t i=0; i < size; i+=512, k++){
+    buffi[i] = ((uint32_t) item * k) | ((uint64_t) pretendRank) << 32;
+  }
+}
+
+
+
 /**
  * Fills a buffer with bytes of a given pattern.  Not performance-sensitive
  * because it is called once per test.
@@ -225,7 +236,7 @@ void generate_memory_pattern(char * buf, size_t bytes, int rand_seed, int preten
         buffi[i] = ((uint64_t) pretendRank) << 32 | rand_seed + i;
         break;
       }case(DATA_FROMFILE):{
-        buffi[i] = readFromDataInput(dataInput, GENERATE);
+        buffi[i] = 0; //readFromDataInput(dataInput, GENERATE);
         break;
       }
     }
