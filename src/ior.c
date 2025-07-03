@@ -1235,7 +1235,7 @@ static void TestIoSys(IOR_test_t *test)
                           (&params->timeStampSignatureValue, 1, MPI_UNSIGNED, 0,
                            testComm), "cannot broadcast start time value");
 
-                generate_memory_pattern((char*) ioBuffers.buffer, params->transferSize, params->timeStampSignatureValue, pretendRank, params->dataPacketType, params->gpuMemoryFlags, &dataInput);
+                generate_memory_pattern((char*) ioBuffers.buffer, params->transferSize, params->timeStampSignatureValue, pretendRank, params->dataPacketType, params->gpuMemoryFlags);
 
                 /* use repetition count for number of multiple files */
                 if (params->multiFile)

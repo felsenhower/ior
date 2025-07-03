@@ -156,9 +156,10 @@ void deallocateDataInput(IOR_data_input_t *dataInput) {
  * @param rand_seed seed to use for PRNG
  * @param pretendRank unique identifier for this process
  * @param dataPacketType identifier to designate pattern to fill buffer
+ * @param dataInput Input buffer to read from when dataPacketType == DATA_FROMFILE
  */
 void update_write_memory_pattern(uint64_t item, char * buf, size_t bytes, int rand_seed, int pretendRank, ior_dataPacketType_e dataPacketType, ior_memory_flags type, IOR_data_input_t *dataInput){
-  if (dataPacketType == DATA_TIMESTAMP /* || dataPacketType == DATA_FROMFILE */ || bytes < 8)
+  if (dataPacketType == DATA_TIMESTAMP || bytes < 8)
     return;
 
 #ifdef HAVE_GPU_DIRECT
@@ -206,9 +207,8 @@ void update_write_memory_pattern(uint64_t item, char * buf, size_t bytes, int ra
  * @param rand_seed seed to use for PRNG
  * @param pretendRank unique identifier for this process
  * @param dataPacketType identifier to designate pattern to fill buffer
- * @param dataInputFilename Filename to read from when dataPacketType == DATA_FROMFILE
  */
-void generate_memory_pattern(char * buf, size_t bytes, int rand_seed, int pretendRank, ior_dataPacketType_e dataPacketType, ior_memory_flags type, IOR_data_input_t *dataInput){
+void generate_memory_pattern(char * buf, size_t bytes, int rand_seed, int pretendRank, ior_dataPacketType_e dataPacketType, ior_memory_flags type){
 #ifdef HAVE_GPU_DIRECT
   if(type == IOR_MEMORY_TYPE_GPU_DEVICE_ONLY){
     generate_memory_pattern_gpu(buf, bytes, rand_seed,  pretendRank, dataPacketType);
@@ -223,6 +223,7 @@ void generate_memory_pattern(char * buf, size_t bytes, int rand_seed, int preten
   for(size_t i=0; i < size; i++){
     switch(dataPacketType){
       case(DATA_RANDOM):
+      case(DATA_FROMFILE):
         // Nothing to do, will work on updates
         break;
       case(DATA_INCOMPRESSIBLE):{
@@ -234,9 +235,6 @@ void generate_memory_pattern(char * buf, size_t bytes, int rand_seed, int preten
       }case(DATA_OFFSET):{
       }case(DATA_TIMESTAMP):{
         buffi[i] = ((uint64_t) pretendRank) << 32 | rand_seed + i;
-        break;
-      }case(DATA_FROMFILE):{
-        buffi[i] = 0; //readFromDataInput(dataInput, GENERATE);
         break;
       }
     }

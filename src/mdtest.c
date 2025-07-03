@@ -2499,7 +2499,7 @@ mdtest_results_t * mdtest_run(int argc, char **argv, MPI_Comm world_com, FILE * 
     /* allocate and initialize write buffer with # */
     if (o.write_bytes > 0) {
         o.write_buffer = aligned_buffer_alloc(o.write_bytes, o.gpu_memory_flags);
-        generate_memory_pattern(o.write_buffer, o.write_bytes, o.random_buffer_offset, rank, o.dataPacketType, o.gpu_memory_flags, NULL);
+        generate_memory_pattern(o.write_buffer, o.write_bytes, o.random_buffer_offset, rank, o.dataPacketType, o.gpu_memory_flags);
     }
 
     /* setup directory path to work in */
