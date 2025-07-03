@@ -147,11 +147,16 @@ void loadDataInputFile(const char *dataInputFilename, IOR_data_input_t *dataInpu
                 fclose(fd);
                 FAIL("Unable to reserve %zu bytes of memory for dataInputFile \"%s\"!", size, dataInputFilename);
         }
-        size_t bytes_read = fread(buffer, 1, size, fd);
-        fclose(fd);
-        if (bytes_read != size) {
-                FAIL("Unable to read %zu bytes from dataInputFile \"%s\"!", size, dataInputFilename);
+        size_t offset = 0;
+        while (offset < size) {
+                size_t bytes_read = fread(buffer + offset, 1, size - offset, fd);
+                if (bytes_read == 0) {
+                        fclose(fd);
+                        FAIL("Unable to read from dataInputFile \"%s\"!", dataInputFilename);
+                }
+                offset += bytes_read;
         }
+        fclose(fd);
         dataInput->buffer = buffer;
         dataInput->size = size;
         memset(&(dataInput->offsets), 0, sizeof(dataInput->offsets));
