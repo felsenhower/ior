@@ -199,7 +199,7 @@ typedef struct IOR_test_t {
 typedef struct {
     void * buffer;
     size_t size;
-    size_t offset;
+    size_t offsets[2];
 } IOR_data_input_t;
 
 IOR_test_t *CreateTest(IOR_param_t *init_params, int test_num);

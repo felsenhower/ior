@@ -74,7 +74,7 @@ void *aligned_buffer_alloc(size_t size, ior_memory_flags type);
 void aligned_buffer_free(void *buf, ior_memory_flags type);
 
 void loadDataInputFile(const char *dataInputFilename, IOR_data_input_t *dataInput);
-uint64_t readFromDataInput(IOR_data_input_t *dataInput);
+uint64_t readFromDataInput(IOR_data_input_t *dataInput, int access);
 void deallocateDataInput(IOR_data_input_t *dataInput);
 
 #endif  /* !_UTILITIES_H */

@@ -154,22 +154,25 @@ void loadDataInputFile(const char *dataInputFilename, IOR_data_input_t *dataInpu
         }
         dataInput->buffer = buffer;
         dataInput->size = size;
-        dataInput->offset = 0;
+        memset(&(dataInput->offsets), 0, sizeof(dataInput->offsets));
 }
 
-uint64_t readFromDataInput(IOR_data_input_t *dataInput) {
+uint64_t readFromDataInput(IOR_data_input_t *dataInput, int access) {
     uint64_t result;
     size_t bytes_to_read = sizeof(result);
     size_t bytes_read = 0;
+    const size_t size = dataInput->size;
+    size_t *offset = dataInput->offsets + access;
+    void *buffer = dataInput->buffer;
     while (bytes_read < bytes_to_read) {
-        size_t remaining_in_buffer = dataInput->size - dataInput->offset;
+        size_t remaining_in_buffer = size - *offset;
         size_t chunk = bytes_to_read - bytes_read;
         if (chunk > remaining_in_buffer) {
             chunk = remaining_in_buffer;
         }
-        memcpy((uint8_t *)&result + bytes_read, dataInput->buffer + dataInput->offset, chunk);
+        memcpy((uint8_t *)&result + bytes_read, buffer + *offset, chunk);
         bytes_read += chunk;
-        dataInput->offset = (dataInput->offset + chunk) % dataInput->size;
+        *offset = (*offset + chunk) % size;
     }
     return result;
 }
@@ -217,7 +220,7 @@ void generate_memory_pattern(char * buf, size_t bytes, int rand_seed, int preten
         buffi[i] = ((uint64_t) pretendRank) << 32 | rand_seed + i;
         break;
       }case(DATA_FROMFILE):{
-        buffi[i] = readFromDataInput(dataInput);
+        buffi[i] = readFromDataInput(dataInput, GENERATE);
         break;
       }
     }
@@ -278,7 +281,7 @@ int verify_memory_pattern(uint64_t item, char * buffer, size_t bytes, int rand_s
         exp = ((uint64_t) pretendRank) << 32 | rand_seed + i;
         break;
       }case(DATA_FROMFILE):{
-        exp = readFromDataInput(dataInput);
+        exp = readFromDataInput(dataInput, VERIFY);
         break;
       }
     }

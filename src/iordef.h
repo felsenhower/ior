@@ -102,6 +102,10 @@ enum OutputFormat_t{
 #define READ               2
 #define READCHECK          3
 
+/* Distinguish generate and verify buffer offsets in IOR_data_input_t */
+#define GENERATE           0
+#define VERIFY             1
+
 /* verbosity settings */
 #define VERBOSE_0          0
 #define VERBOSE_1          1
