@@ -59,6 +59,8 @@
 #include "ior.h"
 #include "ior-internal.h"
 
+#include <sys/mman.h>
+
 #define RANDALGO_GOLDEN_RATIO_PRIME        0x9e37fffffffc0001UL
 
 /************************** D E C L A R A T I O N S ***************************/
@@ -124,46 +126,56 @@ void update_write_memory_pattern(uint64_t item, char * buf, size_t bytes, int ra
   }
 }
 
-static FILE * open_input_file(char *dataInputFilename) {
-  if (dataInputFilename == NULL) {
-    FAIL("Unable to open input file to generate memory pattern. dataInputFile option was not passed!");
-  }
-  FILE * fd = NULL;
-  fd = fopen(dataInputFilename, "rb");
-  if(!fd) {
-    FAIL("Unable to read from input file \"%s\"", dataInputFilename);
-    return NULL;
-  }
-  fseek(fd, 0, SEEK_END);
-  if(ftell(fd) == 0) {
-    fclose(fd);
-    FAIL("Can not read from empty input file \"%s\"", dataInputFilename);
-    return NULL;
-  }
-  rewind(fd);
-  return fd;
+void loadDataInputFile(const char *dataInputFilename, IOR_data_input_t *dataInput) {
+        if (dataInputFilename == NULL) {
+                FAIL("Unable to open input file to generate memory pattern. dataInputFile option was not passed!");
+        }
+        FILE * fd = fopen(dataInputFilename, "rb");
+        if(!fd) {
+                FAIL("Unable to read from input file \"%s\"", dataInputFilename);
+        }
+        fseek(fd, 0, SEEK_END);
+        const long ssize = ftell(fd);
+        if (ssize <= 0) {
+                fclose(fd);
+                FAIL("dataInputFile file \"%s\" is empty or not a regular file!", dataInputFilename);
+        }
+        const size_t size = (size_t)ssize;
+        rewind(fd);
+        void *buffer = malloc(size);
+        if (buffer == NULL) {
+                fclose(fd);
+                FAIL("Unable to reserve %zu bytes of memory for dataInputFile \"%s\"!", size, dataInputFilename);
+        }
+        size_t bytes_read = fread(buffer, 1, size, fd);
+        fclose(fd);
+        if (bytes_read != size) {
+                FAIL("Unable to read %zu bytes from dataInputFile \"%s\"!", size, dataInputFilename);
+        }
+        dataInput->buffer = buffer;
+        dataInput->size = size;
+        dataInput->offset = 0;
 }
 
-static uint64_t read_from_input_file(FILE *fd) {
-  uint64_t result = 0;
-  const size_t bytes_to_read = sizeof(result);
-  char file_read_buf[bytes_to_read];
-  size_t read_pos = 0;
-  while(read_pos < bytes_to_read) {
-    int c = fgetc(fd);
-    if(c == EOF) {
-      if(ferror(fd)) {
-        FAIL("Error during read of input file");
-        return 0;
-      }
-      rewind(fd);
-      continue;
+uint64_t readFromDataInput(IOR_data_input_t *dataInput) {
+    uint64_t result;
+    size_t bytes_to_read = sizeof(result);
+    size_t bytes_read = 0;
+    while (bytes_read < bytes_to_read) {
+        size_t remaining_in_buffer = dataInput->size - dataInput->offset;
+        size_t chunk = bytes_to_read - bytes_read;
+        if (chunk > remaining_in_buffer) {
+            chunk = remaining_in_buffer;
+        }
+        memcpy((uint8_t *)&result + bytes_read, dataInput->buffer + dataInput->offset, chunk);
+        bytes_read += chunk;
+        dataInput->offset = (dataInput->offset + chunk) % dataInput->size;
     }
-    file_read_buf[read_pos] = (char) c;
-    read_pos++;
-  }
-  memcpy(&result, file_read_buf, bytes_to_read);
-  return result;
+    return result;
+}
+
+void deallocateDataInput(IOR_data_input_t *dataInput) {
+    free(dataInput->buffer);
 }
 
 /**
@@ -177,18 +189,14 @@ static uint64_t read_from_input_file(FILE *fd) {
  * @param dataPacketType identifier to designate pattern to fill buffer
  * @param dataInputFilename Filename to read from when dataPacketType == DATA_FROMFILE
  */
-void generate_memory_pattern(char * buf, size_t bytes, int rand_seed, int pretendRank, ior_dataPacketType_e dataPacketType, ior_memory_flags type, char * dataInputFilename){
+void generate_memory_pattern(char * buf, size_t bytes, int rand_seed, int pretendRank, ior_dataPacketType_e dataPacketType, ior_memory_flags type, IOR_data_input_t *dataInput){
 #ifdef HAVE_GPU_DIRECT
   if(type == IOR_MEMORY_TYPE_GPU_DEVICE_ONLY){
     generate_memory_pattern_gpu(buf, bytes, rand_seed,  pretendRank, dataPacketType);
     return;
   }
 #endif
-  FILE * input_fd = NULL;
-  if(dataPacketType == DATA_FROMFILE) {
-    input_fd = open_input_file(dataInputFilename);
-  }
-  
+
   uint64_t * buffi = (uint64_t*) buf;
   // first half of 64 bits use the rank
   const size_t size = bytes / 8;
@@ -209,7 +217,7 @@ void generate_memory_pattern(char * buf, size_t bytes, int rand_seed, int preten
         buffi[i] = ((uint64_t) pretendRank) << 32 | rand_seed + i;
         break;
       }case(DATA_FROMFILE):{
-        buffi[i] = read_from_input_file(input_fd);
+        buffi[i] = readFromDataInput(dataInput);
         break;
       }
     }
@@ -217,10 +225,6 @@ void generate_memory_pattern(char * buf, size_t bytes, int rand_seed, int preten
   
   for(size_t i=size*8; i < bytes; i++){
     buf[i] = (char) i;
-  }
-  
-  if(dataPacketType == DATA_FROMFILE) {
-    fclose(input_fd);
   }
   
 }
@@ -235,7 +239,7 @@ void invalidate_buffer_pattern(char * buffer, size_t bytes, ior_memory_flags typ
   }
 }
 
-int verify_memory_pattern(uint64_t item, char * buffer, size_t bytes, int rand_seed, int pretendRank, ior_dataPacketType_e dataPacketType, ior_memory_flags type, char * dataInputFilename){  
+int verify_memory_pattern(uint64_t item, char * buffer, size_t bytes, int rand_seed, int pretendRank, ior_dataPacketType_e dataPacketType, ior_memory_flags type, IOR_data_input_t *dataInput){  
   int error = 0;
 #ifdef HAVE_GPU_DIRECT
   if(type == IOR_MEMORY_TYPE_GPU_DEVICE_ONLY){
@@ -243,11 +247,6 @@ int verify_memory_pattern(uint64_t item, char * buffer, size_t bytes, int rand_s
     return error;
   }
 #endif
-
-  FILE * input_fd = NULL;
-  if(dataPacketType == DATA_FROMFILE) {
-    input_fd = open_input_file(dataInputFilename);
-  }
 
   // always read all data to ensure that performance numbers stay the same
   uint64_t * buffi = (uint64_t*) buffer;
@@ -279,7 +278,7 @@ int verify_memory_pattern(uint64_t item, char * buffer, size_t bytes, int rand_s
         exp = ((uint64_t) pretendRank) << 32 | rand_seed + i;
         break;
       }case(DATA_FROMFILE):{
-        exp = read_from_input_file(input_fd);
+        exp = readFromDataInput(dataInput);
         break;
       }
     }
@@ -295,10 +294,6 @@ int verify_memory_pattern(uint64_t item, char * buffer, size_t bytes, int rand_s
     if(buffer[i] != (char) i){
       error = 1;
     }
-  }
-  
-  if(dataPacketType == DATA_FROMFILE) {
-    fclose(input_fd);
   }
   
   return error;

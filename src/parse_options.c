@@ -134,14 +134,14 @@ void DecodeDirective(char *line, IOR_param_t *params, options_all_t * module_opt
                 }
         } else if (strcasecmp(option, "dataInputFile") == 0) {
           if (rank == 0){
-            FILE* fd = fopen(value, "rb");
+            FILE * fd = fopen(value, "rb");
             if (fd == NULL){
               FAIL("Cannot open dataInputFile file \"%s\"!", value);
             }
             fseek(fd, 0, SEEK_END);
-            if(ftell(fd) == 0) {
+            if(ftell(fd) <= 0) {
               fclose(fd);
-              FAIL("dataInputFile file \"%s\" is empty!", value);
+              FAIL("dataInputFile file \"%s\" is empty or not a regular file!", value);
             }
             fclose(fd);
           }

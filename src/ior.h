@@ -195,6 +195,13 @@ typedef struct IOR_test_t {
    struct IOR_test_t *next;
 } IOR_test_t;
 
+/* Wrapper for the data input buffer and a read offset */
+typedef struct {
+    void * buffer;
+    size_t size;
+    size_t offset;
+} IOR_data_input_t;
+
 IOR_test_t *CreateTest(IOR_param_t *init_params, int test_num);
 void AllocResults(IOR_test_t *test);
 
