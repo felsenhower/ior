@@ -85,7 +85,7 @@ enum OutputFormat_t outputFormat;
 
 
 
-void loadDataInputFile(const char *dataInputFilename, IOR_data_input_t *dataInput) {
+void loadDataInputFile(const char *dataInputFilename, IOR_offset_t dataInputFileRestrictSize, IOR_data_input_t *dataInput) {
         if (dataInputFilename == NULL) {
                 FAIL("Unable to open input file to generate memory pattern. dataInputFile option was not passed!");
         }
@@ -95,12 +95,19 @@ void loadDataInputFile(const char *dataInputFilename, IOR_data_input_t *dataInpu
         }
         fseek(fd, 0, SEEK_END);
         const long ssize = ftell(fd);
+        rewind(fd);
         if (ssize <= 0) {
                 fclose(fd);
                 FAIL("dataInputFile file \"%s\" is empty or not a regular file!", dataInputFilename);
         }
-        const size_t size = (size_t)ssize;
-        rewind(fd);
+        size_t size = (size_t)ssize;
+        if (dataInputFileRestrictSize != 0) {
+                if (dataInputFileRestrictSize > size) {
+                        fclose(fd);
+                        FAIL("dataInputFileRestrictSize must be less or equal to file size!");
+                }
+                size = dataInputFileRestrictSize;
+        }
         void *buffer = malloc(size);
         if (buffer == NULL) {
                 fclose(fd);

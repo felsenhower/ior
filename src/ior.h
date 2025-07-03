@@ -123,6 +123,8 @@ typedef struct
 
     char * saveRankDetailsCSV;       /* save the details about the performance to a file */
     char * dataInputFile;            /* input date to read from when --dataPacketType=fromfile */
+    IOR_offset_t dataInputFileRestrictSize; /* restrict the internal buffer for the data input file (0 ==> read entire file) */
+    
     int summary_every_test;          /* flag to print summary every test, not just at end */
     int uniqueDir;                   /* use unique directory for each fpp */
     int useExistingTestFile;         /* do not delete test file before access */

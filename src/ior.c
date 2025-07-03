@@ -1166,7 +1166,7 @@ static void TestIoSys(IOR_test_t *test)
         IOR_data_input_t dataInput;
         
         if (params->dataPacketType == DATA_FROMFILE) {
-                loadDataInputFile(params->dataInputFile, &dataInput);
+                loadDataInputFile(params->dataInputFile, params->dataInputFileRestrictSize, &dataInput);
         }
 
         if (rank == 0 && verbose >= VERBOSE_1) {
