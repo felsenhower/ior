@@ -1164,7 +1164,7 @@ static void TestIoSys(IOR_test_t *test)
         void *hog_buf;
         IOR_io_buffers ioBuffers;
         IOR_data_input_t dataInput;
-        
+
         if (params->dataPacketType == DATA_FROMFILE) {
                 loadDataInputFile(params->dataInputFile, params->dataInputFileRestrictSize, &dataInput);
         }
@@ -1448,7 +1448,7 @@ static void TestIoSys(IOR_test_t *test)
 
         if (hog_buf != NULL)
                 free(hog_buf);
-        
+
         if (params->dataPacketType == DATA_FROMFILE) {
                deallocateDataInput(&dataInput);
         }

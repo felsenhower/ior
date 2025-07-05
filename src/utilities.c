@@ -250,7 +250,7 @@ void generate_memory_pattern(char * buf, size_t bytes, int rand_seed, int preten
   for(size_t i=size*8; i < bytes; i++){
     buf[i] = (char) i;
   }
-  
+
 }
 
 void invalidate_buffer_pattern(char * buffer, size_t bytes, ior_memory_flags type){
@@ -263,7 +263,7 @@ void invalidate_buffer_pattern(char * buffer, size_t bytes, ior_memory_flags typ
   }
 }
 
-int verify_memory_pattern(uint64_t item, char * buffer, size_t bytes, int rand_seed, int pretendRank, ior_dataPacketType_e dataPacketType, ior_memory_flags type, IOR_data_input_t *dataInput){  
+int verify_memory_pattern(uint64_t item, char * buffer, size_t bytes, int rand_seed, int pretendRank, ior_dataPacketType_e dataPacketType, ior_memory_flags type, IOR_data_input_t *dataInput){
   int error = 0;
 #ifdef HAVE_GPU_DIRECT
   if(type == IOR_MEMORY_TYPE_GPU_DEVICE_ONLY){
